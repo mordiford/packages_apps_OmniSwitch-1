@@ -48,6 +48,7 @@ public class SwitchManager {
     private static final String TAG = "SwitchManager";
     private static final boolean DEBUG = false;
     private List<TaskDescription> mLoadedTasks;
+    private List<TaskDescription> mLoadedTasksOriginal;
     private ISwitchLayout mLayout;
     private SwitchGestureView mGestureView;
     private Context mContext;
@@ -148,6 +149,7 @@ public class SwitchManager {
         }
 
         mLoadedTasks = new ArrayList<TaskDescription>();
+        mLoadedTasksOriginal = new ArrayList<TaskDescription>();
         switchLayout();
         mGestureView = new SwitchGestureView(this, mContext);
     }
@@ -177,13 +179,12 @@ public class SwitchManager {
     }
 
     public void update(List<TaskDescription> taskList, TaskDescription dockedTask,
-            TaskDescription topHomeTask, TaskDescription placeholderTask) {
+            TaskDescription topHomeTask, TaskDescription placeholderTask, List<TaskDescription> taskListOriginal) {
         if (DEBUG){
             Log.d(TAG, "update mRestoreStack= " + mRestoreStack);
         }
         if (!mRestoreStack) {
-            mLoadedTasks.clear();
-            mLoadedTasks.addAll(taskList);
+            mLoadedTasksOriginal = taskListOriginal;
         }
         mDockedTask = dockedTask;
         mPlaceholderTask = placeholderTask;
@@ -191,6 +192,8 @@ public class SwitchManager {
         setFocusStack();
 
         if (!mRestoreStack) {
+            mLoadedTasks.clear();
+            mLoadedTasks.addAll(taskList);
             mLayout.update();
             mGestureView.update();
         }
@@ -243,7 +246,7 @@ public class SwitchManager {
 
         if (!close) {
             ad.setKilled();
-            mLoadedTasks.remove(ad);
+            removeTaskFromList(ad);
             // make sure we stay on the correct focus
             // and killing is not changing it - overlay stays open here
             restoreHomeStack();
@@ -261,14 +264,14 @@ public class SwitchManager {
             return;
         }
 
-        if (mLoadedTasks.size() == 0) {
+        if (mLoadedTasksOriginal.size() == 0) {
             if(close){
                 hide(true);
             }
             return;
         }
 
-        Iterator<TaskDescription> nextTask = mLoadedTasks.iterator();
+        Iterator<TaskDescription> nextTask = mLoadedTasksOriginal.iterator();
         while (nextTask.hasNext()) {
             TaskDescription ad = nextTask.next();
             if (ad.isLocked()) {
@@ -288,13 +291,13 @@ public class SwitchManager {
             return;
         }
 
-        if (getTasks().size() <= 1) {
+        if (mLoadedTasksOriginal.size() <= 1) {
             if(close){
                 hide(true);
             }
             return;
         }
-        Iterator<TaskDescription> nextTask = mLoadedTasks.iterator();
+        Iterator<TaskDescription> nextTask = mLoadedTasksOriginal.iterator();
         // skip active task
         nextTask.next();
         while (nextTask.hasNext()) {
@@ -318,15 +321,15 @@ public class SwitchManager {
             return;
         }
 
-        if (getTasks().size() == 0) {
+        if (mLoadedTasksOriginal.size() == 0) {
             if(close){
                 hide(true);
             }
             return;
         }
 
-        if (getTasks().size() >= 1){
-            TaskDescription ad = getTasks().get(0);
+        if (mLoadedTasksOriginal.size() >= 1){
+            TaskDescription ad = mLoadedTasksOriginal.get(0);
             if (ad.isLocked()) {
                 // remove from locked
                 toggleLockedApp(ad, ad.isLocked(), false);
@@ -365,14 +368,14 @@ public class SwitchManager {
     }
 
     public void toggleLastApp(boolean close) {
-        if (getTasks().size() < 2) {
+        if (mLoadedTasksOriginal.size() < 2) {
             if(close){
                 hide(true);
             }
             return;
         }
 
-        TaskDescription ad = getTasks().get(1);
+        TaskDescription ad = mLoadedTasksOriginal.get(1);
         switchTask(ad, close, true);
     }
 
@@ -477,11 +480,13 @@ public class SwitchManager {
 
     public void clearTasks() {
         mLoadedTasks.clear();
+        mLoadedTasksOriginal.clear();
+        mLayout.notifiyRecentsListChanged();
     }
 
     private TaskDescription getCurrentTopTask() {
-        if (getTasks().size() >= 1) {
-            TaskDescription ad = getTasks().get(0);
+        if (mLoadedTasksOriginal.size() >= 1) {
+            TaskDescription ad = mLoadedTasksOriginal.get(0);
             return ad;
         } else {
             return null;
@@ -489,7 +494,7 @@ public class SwitchManager {
     }
 
     private TaskDescription getUndockedTopTask(TaskDescription excludeTask) {
-        for (TaskDescription ad : getTasks()) {
+        for (TaskDescription ad : mLoadedTasksOriginal) {
             if (ad.getStackId() != DOCKED_STACK_ID) {
                 if (excludeTask == null) {
                     return ad;
@@ -499,14 +504,6 @@ public class SwitchManager {
             }
         }
         return null;
-    }
-
-    public TaskDescription getLastTask() {
-        if (getTasks().size() < 2) {
-            return null;
-        }
-
-        return getTasks().get(1);
     }
 
     public void lockToCurrentApp(boolean close) {
@@ -703,7 +700,7 @@ public class SwitchManager {
 
         if (!close) {
             ad.setKilled();
-            mLoadedTasks.remove(ad);
+            removeTaskFromList(ad);
             // make sure we stay on the correct focus
             // and killing is not changing it - overlay stays open here
             restoreHomeStack();
@@ -726,5 +723,11 @@ public class SwitchManager {
         if (refresh) {
             mLayout.refresh();
         }
+    }
+
+    private void removeTaskFromList(TaskDescription ad) {
+        mLoadedTasks.remove(ad);
+        mLoadedTasksOriginal.remove(ad);
+        mLayout.notifiyRecentsListChanged();
     }
 }
