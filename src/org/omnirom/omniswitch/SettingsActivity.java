@@ -185,6 +185,8 @@ public class SettingsActivity extends PreferenceActivity implements
 
         addPreferencesFromResource(R.xml.recents_settings);
 
+        getActionBar().setDisplayHomeAsUpEnabled(true);
+
         mEnable = (SwitchPreference) findPreference(PREF_ENABLE);
         mEnable.setChecked(SwitchService.isRunning() && mPrefs.getBoolean(SettingsActivity.PREF_ENABLE, false));
         mEnable.setOnPreferenceChangeListener(this);
@@ -489,9 +491,13 @@ public class SettingsActivity extends PreferenceActivity implements
                 item.setChecked(!checked);
                 setAppIconEnabled(checked);
                 return true;
+            case android.R.id.home:
+                finish();
+                return true;
             default:
-                return super.onOptionsItemSelected(item);
+                break;
         }
+        return super.onOptionsItemSelected(item);
     }
 
     public void setAppIconEnabled(boolean enabled) {
